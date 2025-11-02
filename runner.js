@@ -16,20 +16,37 @@
     const editorWrap = document.getElementById('editorWrap');
     const topbar = document.getElementById('topbar');
     const desk = document.getElementById('desk');
+    const toast = document.getElementById('toast');
     let iframe = document.getElementById('view');
 
-    // --- Раскладка высоты результата
+    // ---- утилиты
+    function showToast(text) {
+      toast.textContent = text;
+      toast.classList.add('show');
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => toast.classList.remove('show'), 900); // ~секунда
+    }
+    function updateRunState() {
+      const has = (codeEl.value.trim().length > 0);
+      runBtn.disabled = !has;
+    }
+
+    // ---- раскладка результата
     function layout() {
       const topbarH = topbar.offsetHeight;
       const editorH = editorWrap.offsetParent ? editorWrap.offsetHeight : 0;
-      const pad = 8; // нижний
+      const pad = 8;
       const avail = window.innerHeight - topbarH - editorH - pad;
       desk.style.height = Math.max(240, avail) + 'px';
     }
     window.addEventListener('resize', layout);
     layout();
 
-    // --- Переключение редактора (доступ к вставке/запуску остаётся всегда)
+    // ---- реакция на ввод — включает/выключает «Запустить»
+    codeEl.addEventListener('input', updateRunState);
+    updateRunState();
+
+    // ---- переключение редактора
     toggleEditorBtn.addEventListener('click', () => {
       const hide = !editorWrap.classList.contains('collapsed');
       editorWrap.classList.toggle('collapsed', hide);
@@ -37,26 +54,29 @@
       layout();
     });
 
-    // --- Вставка: AndroidBridge → Clipboard API → ручной ввод
+    // ---- вставка
     pasteBtn.addEventListener('click', async () => {
+      let inserted = null;
       try {
         if (window.AndroidBridge && AndroidBridge.getClipboardText) {
-          const t = AndroidBridge.getClipboardText();
-          codeEl.value = sanitizeEl.checked ? extractHtml(t) : t;
-          return;
+          inserted = AndroidBridge.getClipboardText();
+        } else if (navigator.clipboard && navigator.clipboard.readText) {
+          inserted = await navigator.clipboard.readText();
         }
-        if (navigator.clipboard && navigator.clipboard.readText) {
-          const txt = await navigator.clipboard.readText();
-          codeEl.value = sanitizeEl.checked ? extractHtml(txt) : txt;
-          return;
-        }
-      } catch (_) {}
-      const manual = prompt('Вставьте текст вручную:');
-      if (manual != null) codeEl.value = sanitizeEl.checked ? extractHtml(manual) : manual;
+      } catch (_) { /* игнорируем */ }
+      if (inserted == null) {
+        const manual = prompt('Вставьте текст вручную:');
+        if (manual == null) return;
+        inserted = manual;
+      }
+      codeEl.value = sanitizeEl.checked ? extractHtml(inserted) : inserted;
+      updateRunState();
+      showToast('Вставлено');
     });
 
-    // --- Запуск кода (работает даже при скрытом редакторе)
+    // ---- запуск
     runBtn.addEventListener('click', () => {
+      if (runBtn.disabled) return;
       const raw = codeEl.value || '';
       const user = sanitizeEl.checked ? extractHtml(raw) : raw;
       const doc = wrapDocument(user);
@@ -72,9 +92,10 @@
       layout();
     });
 
-    // --- Очистить (содержимое результата и редактор)
+    // ---- очистить
     clearBtn.addEventListener('click', () => {
       codeEl.value = '';
+      updateRunState();
       const fresh = document.createElement('iframe');
       fresh.id = 'view';
       fresh.setAttribute(
@@ -85,9 +106,10 @@
       desk.replaceChild(fresh, iframe);
       iframe = fresh;
       layout();
+      showToast('Очищено');
     });
 
-    // --- Утилиты
+    // ---- извлечение чистого HTML
     function extractHtml(text) {
       let t = text;
       const fence = /```(?:html|HTML|htm|HTM)?\s*([\s\S]*?)```/;
@@ -97,7 +119,6 @@
       const low = t.toLowerCase();
       const iDoctype = low.indexOf('<!doctype');
       const iHtml = low.indexOf('<html');
-
       let start = -1;
       if (iDoctype >= 0 && iHtml >= 0) start = Math.min(iDoctype, iHtml);
       else start = (iDoctype >= 0) ? iDoctype : iHtml;
@@ -111,7 +132,7 @@
       return t.trim();
     }
 
-    // Обёртка: добавляем viewport при необходимости, не мешаем коду
+    // ---- обёртка документа
     function wrapDocument(src) {
       const hasHtml = /<\s*html[\s>]/i.test(src);
       const hasHead = /<\s*head[\s>]/i.test(src);
