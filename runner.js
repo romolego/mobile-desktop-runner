@@ -1,5 +1,4 @@
 (function () {
-  // гарантированная инициализация
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
@@ -18,39 +17,41 @@
 
     const topbar = document.getElementById('topbar');
     const collapsePanelBtn = document.getElementById('collapsePanel');
-    const expandPanelBtn = document.getElementById('expandPanel');
+    const expandFloatingBtn = document.getElementById('expandFloating');
 
     const desk = document.getElementById('desk');
     let iframe = document.getElementById('view');
 
-    // ---- раскладка: высота результата = всё доступное
+    // --- Раскладка высоты
     function layout() {
-      const topbarH = topbar.classList.contains('collapsed') ? 14 : document.querySelector('.topbar').offsetHeight;
+      const topbarH = topbar.classList.contains('collapsed') ? 0 : topbar.offsetHeight;
       const editorH = editorWrap.offsetParent ? editorWrap.offsetHeight : 0;
-      const pad = 10; // нижний паддинг
+      const pad = 10;
       const avail = window.innerHeight - topbarH - editorH - pad;
       desk.style.height = Math.max(240, avail) + 'px';
     }
     window.addEventListener('resize', layout);
     layout();
 
-    // ---- сворачивание редактора
+    // --- Сворачивание редактора
     collapseEditorEl.addEventListener('change', () => {
       editorWrap.classList.toggle('collapsed', collapseEditorEl.checked);
       layout();
     });
 
-    // ---- сворачивание панели
+    // --- Сворачивание/разворачивание панели
     collapsePanelBtn.addEventListener('click', () => {
       topbar.classList.add('collapsed');
+      expandFloatingBtn.style.display = 'inline-block';
       layout();
     });
-    expandPanelBtn.addEventListener('click', () => {
+    expandFloatingBtn.addEventListener('click', () => {
       topbar.classList.remove('collapsed');
+      expandFloatingBtn.style.display = 'none';
       layout();
     });
 
-    // ---- вставка (Clipboard API / AndroidBridge / prompt)
+    // --- Вставка из буфера: AndroidBridge → Clipboard API → prompt
     pasteBtn.addEventListener('click', async () => {
       try {
         if (window.AndroidBridge && AndroidBridge.getClipboardText) {
@@ -68,33 +69,39 @@
       if (manual != null) codeEl.value = sanitizeEl.checked ? extractHtml(manual) : manual;
     });
 
-    // ---- запуск кода
+    // --- Запуск кода
     runBtn.addEventListener('click', () => {
       const raw = codeEl.value || '';
       const user = sanitizeEl.checked ? extractHtml(raw) : raw;
       const doc = wrapDocument(user);
       const fresh = document.createElement('iframe');
       fresh.id = 'view';
-      fresh.setAttribute('sandbox', 'allow-scripts allow-forms allow-modals allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-downloads allow-same-origin');
+      fresh.setAttribute(
+        'sandbox',
+        'allow-scripts allow-forms allow-modals allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-downloads allow-same-origin'
+      );
       fresh.srcdoc = doc;
       desk.replaceChild(fresh, iframe);
       iframe = fresh;
       layout();
     });
 
-    // ---- очистка
+    // --- Очистить
     clearBtn.addEventListener('click', () => {
       codeEl.value = '';
       const fresh = document.createElement('iframe');
       fresh.id = 'view';
-      fresh.setAttribute('sandbox', 'allow-scripts allow-forms allow-modals allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-downloads allow-same-origin');
+      fresh.setAttribute(
+        'sandbox',
+        'allow-scripts allow-forms allow-modals allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-downloads allow-same-origin'
+      );
       fresh.srcdoc = '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body></body></html>';
       desk.replaceChild(fresh, iframe);
       iframe = fresh;
       layout();
     });
 
-    // ---- утилиты
+    // --- Утилиты
     function extractHtml(text) {
       let t = text;
       const fence = /```(?:html|HTML|htm|HTM)?\s*([\s\S]*?)```/;
@@ -118,7 +125,7 @@
       return t.trim();
     }
 
-    // минимальная обёртка без вмешательства в содержимое
+    // Обертка: добавляем viewport, если его нет, не вмешиваемся больше
     function wrapDocument(src) {
       const hasHtml = /<\s*html[\s>]/i.test(src);
       const hasHead = /<\s*head[\s>]/i.test(src);
