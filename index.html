@@ -6,50 +6,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
   <style>
-    :root { --topbar-h: 56px; --pad: 10px; --max-w: 1920px; }
+    :root { --topbar-h: 36px; --pad: 8px; --max-w: 1920px; }
     * { box-sizing: border-box; }
     html, body { height: 100%; margin: 0; }
     body { font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Noto Sans"; background: #f6f7f9; color: #111; overflow: hidden; }
 
-    /* Верхняя панель (в развернутом состоянии) */
+    /* Узкая постоянная панель управления */
     .topbar {
       position: fixed; inset: 0 0 auto 0; height: var(--topbar-h);
-      padding: 8px var(--pad);
-      background: rgba(255,255,255,.98); backdrop-filter: saturate(150%) blur(4px);
+      padding: 4px var(--pad);
+      background: rgba(255,255,255,.92); backdrop-filter: saturate(150%) blur(3px);
       border-bottom: 1px solid #d6d9de; z-index: 10;
+      display: grid; grid-auto-flow: column; align-items: center; gap: 6px;
     }
-    .topbar-inner { display: grid; grid-auto-flow: column; align-items: center; gap: 8px; }
-
-    /* Свернутая панель: без белой полосы, полностью прозрачна и высота = 0 */
-    .topbar.collapsed {
-      height: 0; padding: 0; border: none; background: transparent; backdrop-filter: none;
-    }
-    .topbar.collapsed .topbar-inner { display: none; }
-
-    /* Плавающая кнопка “Развернуть панель управления кодом” в правом верхнем углу */
-    .expand-floating {
-      position: fixed; top: 8px; right: 8px; z-index: 12;
-      display: none;
-      padding: 8px 12px; font-size: 12px;
-      border-radius: 10px; border: 1px solid #c9ced6;
-      background: rgba(255,255,255,.92);
-      color: #111; cursor: pointer;
-      box-shadow: 0 2px 10px rgba(0,0,0,.08);
-    }
-    .expand-floating:hover { background: #fff; }
-
     .spacer { height: var(--topbar-h); }
-    .topbar.collapsed + .spacer { height: 0; }
 
     button, label { font: inherit; }
     button {
-      height: 36px; padding: 0 12px;
+      height: 28px; padding: 0 10px;
       border: 1px solid #c9ced6; background: #fff; border-radius: 8px; cursor: pointer;
     }
     .chk { display: grid; grid-auto-flow: column; align-items: center; gap: 6px; white-space: nowrap; }
+    .chk input { transform: translateY(1px); }
 
     .wrap { height: calc(100% - var(--topbar-h)); display: grid; grid-template-rows: auto 1fr; }
-    .topbar.collapsed ~ .wrap { height: 100%; }
 
     .editor-wrap { padding: var(--pad); }
     .editor-wrap.collapsed { display: none; }
@@ -61,7 +41,12 @@
       overscroll-behavior: contain;
     }
 
-    .stage { padding: 0 var(--pad) var(--pad); width: 100%; height: 100%; overflow: auto; display: grid; }
+    .stage {
+      padding: 0 var(--pad) var(--pad);
+      width: 100%; height: 100%; overflow: auto;
+      display: grid; grid-template-columns: 1fr; align-content: start;
+    }
+    /* Результат: 100% ширины, но не больше 1920 */
     .desk {
       width: 100%; max-width: var(--max-w); margin: 0 auto;
       background: #fff; border: 1px solid #ccd2da; border-radius: 8px; overflow: hidden; position: relative;
@@ -69,26 +54,26 @@
       height: 480px; /* пересчитаем скриптом */
     }
     .desk > iframe { width: 100%; height: 100%; border: 0; display: block; background: #fff; }
+
+    /* Небольшие экраны: кнопки компактнее */
+    @media (max-width: 420px) {
+      .topbar { gap: 4px; }
+      button { padding: 0 8px; }
+      .chk { gap: 4px; }
+    }
   </style>
 </head>
 <body>
-  <!-- Прозрачная/скрываемая панель -->
+  <!-- Узкая постоянная панель (вставка/запуск/очистка + чекбокс + переключатель редактора) -->
   <div class="topbar" id="topbar">
-    <div class="topbar-inner">
-      <button id="paste">Вставить</button>
-      <button id="run">Запустить</button>
-      <button id="clear">Очистить</button>
-      <label class="chk" title="Убрать ненужный текст до и после содержимого HTML-страницы">
-        <input type="checkbox" id="sanitize" checked> очистить лишний текст
-      </label>
-      <label class="chk"><input type="checkbox" id="collapseEditor"> свернуть редактор</label>
-      <button id="collapsePanel">Свернуть панель</button>
-    </div>
+    <button id="paste">Вставить</button>
+    <button id="run">Запустить</button>
+    <button id="clear">Очистить</button>
+    <label class="chk" title="Убрать ненужный текст до и после содержимого HTML-страницы">
+      <input type="checkbox" id="sanitize" checked> очистить лишний текст
+    </label>
+    <button id="toggleEditor">Скрыть редактор</button>
   </div>
-
-  <!-- Плавающая кнопка для развертывания панели -->
-  <button id="expandFloating" class="expand-floating">Развернуть панель управления кодом</button>
-
   <div class="spacer"></div>
 
   <div class="wrap">
