@@ -11,47 +11,33 @@
     const runBtn = document.getElementById('run');
     const clearBtn = document.getElementById('clear');
     const sanitizeEl = document.getElementById('sanitize');
+    const toggleEditorBtn = document.getElementById('toggleEditor');
 
-    const collapseEditorEl = document.getElementById('collapseEditor');
     const editorWrap = document.getElementById('editorWrap');
-
     const topbar = document.getElementById('topbar');
-    const collapsePanelBtn = document.getElementById('collapsePanel');
-    const expandFloatingBtn = document.getElementById('expandFloating');
-
     const desk = document.getElementById('desk');
     let iframe = document.getElementById('view');
 
-    // --- Раскладка высоты
+    // --- Раскладка высоты результата
     function layout() {
-      const topbarH = topbar.classList.contains('collapsed') ? 0 : topbar.offsetHeight;
+      const topbarH = topbar.offsetHeight;
       const editorH = editorWrap.offsetParent ? editorWrap.offsetHeight : 0;
-      const pad = 10;
+      const pad = 8; // нижний
       const avail = window.innerHeight - topbarH - editorH - pad;
       desk.style.height = Math.max(240, avail) + 'px';
     }
     window.addEventListener('resize', layout);
     layout();
 
-    // --- Сворачивание редактора
-    collapseEditorEl.addEventListener('change', () => {
-      editorWrap.classList.toggle('collapsed', collapseEditorEl.checked);
+    // --- Переключение редактора (доступ к вставке/запуску остаётся всегда)
+    toggleEditorBtn.addEventListener('click', () => {
+      const hide = !editorWrap.classList.contains('collapsed');
+      editorWrap.classList.toggle('collapsed', hide);
+      toggleEditorBtn.textContent = hide ? 'Показать редактор' : 'Скрыть редактор';
       layout();
     });
 
-    // --- Сворачивание/разворачивание панели
-    collapsePanelBtn.addEventListener('click', () => {
-      topbar.classList.add('collapsed');
-      expandFloatingBtn.style.display = 'inline-block';
-      layout();
-    });
-    expandFloatingBtn.addEventListener('click', () => {
-      topbar.classList.remove('collapsed');
-      expandFloatingBtn.style.display = 'none';
-      layout();
-    });
-
-    // --- Вставка из буфера: AndroidBridge → Clipboard API → prompt
+    // --- Вставка: AndroidBridge → Clipboard API → ручной ввод
     pasteBtn.addEventListener('click', async () => {
       try {
         if (window.AndroidBridge && AndroidBridge.getClipboardText) {
@@ -69,7 +55,7 @@
       if (manual != null) codeEl.value = sanitizeEl.checked ? extractHtml(manual) : manual;
     });
 
-    // --- Запуск кода
+    // --- Запуск кода (работает даже при скрытом редакторе)
     runBtn.addEventListener('click', () => {
       const raw = codeEl.value || '';
       const user = sanitizeEl.checked ? extractHtml(raw) : raw;
@@ -86,7 +72,7 @@
       layout();
     });
 
-    // --- Очистить
+    // --- Очистить (содержимое результата и редактор)
     clearBtn.addEventListener('click', () => {
       codeEl.value = '';
       const fresh = document.createElement('iframe');
@@ -125,7 +111,7 @@
       return t.trim();
     }
 
-    // Обертка: добавляем viewport, если его нет, не вмешиваемся больше
+    // Обёртка: добавляем viewport при необходимости, не мешаем коду
     function wrapDocument(src) {
       const hasHtml = /<\s*html[\s>]/i.test(src);
       const hasHead = /<\s*head[\s>]/i.test(src);
