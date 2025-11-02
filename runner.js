@@ -1,4 +1,4 @@
-(function () {
+document.addEventListener('DOMContentLoaded', () => {
   const codeEl = document.getElementById('code');
   const pasteBtn = document.getElementById('paste');
   const runBtn = document.getElementById('run');
@@ -16,15 +16,25 @@
   const zVal   = document.getElementById('zVal');
   let iframe = document.getElementById('view');
 
-  // ---------- масштаб «монитора» 1920 ----------
+  // -------- Режим платформы (телефон/ПК) --------
+  const isMobile = /Android|iPhone|iPad|Opera Mini|IEMobile/i.test(navigator.userAgent);
+
+  // -------- Масштаб результата --------
   let zoomMode = 'auto'; // 'auto' | number
   function applyScale() {
+    if (!isMobile) {
+      // ПК: без масштабирования, ширина .desk = 100% (max 1920)
+      stageScale.style.transform = 'scale(1)';
+      zVal.textContent = '100%';
+      return;
+    }
+    // Телефон: подгоняем под экран, исходный макет рассчитывается как 1920
+    const pad = 24;
+    const availW = document.querySelector('.stage-outer').clientWidth - pad;
+    const baseW = 1920;
     if (zoomMode === 'auto') {
-      const pad = 24;
-      const availW = document.querySelector('.stage-outer').clientWidth - pad;
-      const baseW = 1920;
-      const scale = Math.min(1, Math.max(0.2, availW / baseW));
-      stageScale.style.transform = `scale(${scale.toFixed(3)})`;
+      const s = Math.min(1, Math.max(0.2, availW / baseW));
+      stageScale.style.transform = `scale(${s.toFixed(3)})`;
       zVal.textContent = 'auto';
     } else {
       const s = Math.max(0.2, Math.min(2, zoomMode));
@@ -32,25 +42,27 @@
       zVal.textContent = Math.round(s * 100) + '%';
     }
   }
-  window.addEventListener('resize', () => { if (zoomMode === 'auto') applyScale(); });
+  window.addEventListener('resize', () => { if (zoomMode === 'auto' || !isMobile) applyScale(); });
   applyScale();
-  zMinus.addEventListener('click', () => { zoomMode = typeof zoomMode === 'number' ? zoomMode - 0.1 : 0.9; applyScale(); });
-  zPlus .addEventListener('click', () => { zoomMode = typeof zoomMode === 'number' ? zoomMode + 0.1 : 1.1; applyScale(); });
-  zReset.addEventListener('click', () => { zoomMode = 1; applyScale(); });
+  zMinus.addEventListener('click', () => { zoomMode = typeof zoomMode === 'number' ? zoomMode - 0.1 : (isMobile ? 0.9 : 1); applyScale(); });
+  zPlus .addEventListener('click', () => { zoomMode = typeof zoomMode === 'number' ? zoomMode + 0.1 : (isMobile ? 1.1 : 1); applyScale(); });
+  zReset.addEventListener('click', () => { zoomMode = isMobile ? 1 : 'auto'; applyScale(); });
 
-  // ---------- управление редактором (кодовая область) ----------
+  // -------- Блокировка/сворачивание редактора --------
   lockEditorEl.addEventListener('change', () => {
     editorWrap.classList.toggle('locked', lockEditorEl.checked);
+    codeEl.readOnly = lockEditorEl.checked;
   });
   collapseEditorEl.addEventListener('change', () => {
     editorWrap.classList.toggle('collapsed', collapseEditorEl.checked);
   });
 
-  // ---------- буфер обмена / вставка ----------
+  // -------- Вставка из буфера --------
   pasteBtn.addEventListener('click', async () => {
     try {
       if (window.AndroidBridge && AndroidBridge.getClipboardText) {
-        codeEl.value = sanitizeEl.checked ? extractHtml(AndroidBridge.getClipboardText()) : AndroidBridge.getClipboardText();
+        const t = AndroidBridge.getClipboardText();
+        codeEl.value = sanitizeEl.checked ? extractHtml(t) : t;
         return;
       }
       if (navigator.clipboard && navigator.clipboard.readText) {
@@ -63,11 +75,11 @@
     if (manual != null) codeEl.value = sanitizeEl.checked ? extractHtml(manual) : manual;
   });
 
-  // ---------- запуск ----------
+  // -------- Запуск --------
   runBtn.addEventListener('click', () => {
     const raw = codeEl.value || "";
     const user = sanitizeEl.checked ? extractHtml(raw) : raw;
-    const doc = buildDocumentWithWrapper(user);
+    const doc = buildDocumentWithWrapper(user, isMobile);
     const fresh = document.createElement('iframe');
     fresh.id = 'view';
     fresh.setAttribute('sandbox','allow-scripts allow-forms allow-modals allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-downloads');
@@ -76,10 +88,10 @@
     iframe = fresh;
   });
 
-  // ---------- очистка ----------
+  // -------- Очистка --------
   clearBtn.addEventListener('click', () => {
     codeEl.value = "";
-    const blank = buildDocumentWithWrapper("");
+    const blank = buildDocumentWithWrapper("", isMobile);
     const fresh = document.createElement('iframe');
     fresh.id = 'view';
     fresh.setAttribute('sandbox','allow-scripts allow-forms allow-modals allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-downloads');
@@ -88,7 +100,7 @@
     iframe = fresh;
   });
 
-  // ---------- извлечение «чистого HTML» из сообщения ----------
+  // -------- Нормализация HTML --------
   function extractHtml(text) {
     let t = text;
     const fence = /```(?:html|HTML|htm|HTM)?\s*([\s\S]*?)```/;
@@ -112,11 +124,15 @@
     return t.trim();
   }
 
-  // ---------- обёртка пользователя: viewport 1920 + попапы внутри + без вмешательства в прокрутку результата ----------
-  function buildDocumentWithWrapper(src) {
+  // -------- Обёртка результата --------
+  function buildDocumentWithWrapper(src, mobile) {
+    // На телефоне — viewport 1920 для «ПК-версии». На ПК — device-width.
+    const viewportMeta = mobile
+      ? `<meta name="viewport" content="width=1920, initial-scale=1">`
+      : `<meta name="viewport" content="width=device-width, initial-scale=1">`;
+
     const hasHtml = /<\s*html[\s>]/i.test(src);
     const hasHead = /<\s*head[\s>]/i.test(src);
-    const viewport = `<meta name="viewport" content="width=1920, initial-scale=1">`;
 
     const wrapperCSS = `
 <style>
@@ -132,7 +148,6 @@
     const wrapperJS = `
 <script>
 (function(){
-  // popups внутрь «монитора»
   let root=null;
   function ensureRoot(){
     if(!root){
@@ -167,8 +182,8 @@
 
     if (hasHtml) {
       let out = src;
-      if (hasHead) out = out.replace(/<\s*head(\s[^>]*)?>/i, m => `${m}${viewport}${wrapperCSS}${wrapperJS}`);
-      else out = out.replace(/<\s*html([^>]*)>/i, (m, attrs) => `<html${attrs}><head>${viewport}${wrapperCSS}${wrapperJS}</head>`);
+      if (hasHead) out = out.replace(/<\s*head(\s[^>]*)?>/i, m => `${m}${viewportMeta}${wrapperCSS}${wrapperJS}`);
+      else out = out.replace(/<\s*html([^>]*)>/i, (m, attrs) => `<html${attrs}><head>${viewportMeta}${wrapperCSS}${wrapperJS}</head>`);
       return out;
     }
 
@@ -176,7 +191,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-${viewport}
+${viewportMeta}
 ${wrapperCSS}
 ${wrapperJS}
 </head>
@@ -185,4 +200,4 @@ ${src}
 </body>
 </html>`;
   }
-})();
+});
