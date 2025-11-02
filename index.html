@@ -2,56 +2,57 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <title>Mobile Desktop Runner — 1920</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>Desktop Runner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
   <style>
-    :root { --desk-max-w: 1920px; --topbar-h: 56px; }
+    :root { --topbar-h: 56px; --pad: 10px; --max-w: 1920px; }
+    * { box-sizing: border-box; }
     html, body { height: 100%; margin: 0; }
     body { font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Noto Sans"; background: #f6f7f9; color: #111; overflow: hidden; }
 
+    /* фикс-панель — всегда сверху */
     .topbar {
-      position: fixed; top: 0; left: 0; right: 0; height: var(--topbar-h);
+      position: fixed; inset: 0 0 auto 0; height: var(--topbar-h);
       display: grid; grid-auto-flow: column; align-items: center; gap: 8px;
-      padding: 8px 10px; box-sizing: border-box;
+      padding: 8px var(--pad);
       background: rgba(255,255,255,.98); backdrop-filter: saturate(150%) blur(4px);
-      border-bottom: 1px solid #d6d9de; z-index: 9999;
+      border-bottom: 1px solid #d6d9de; z-index: 10;
     }
     .spacer { height: var(--topbar-h); }
 
     button, label { font: inherit; }
-    button { height: 36px; padding: 0 12px; border: 1px solid #c9ced6; background: #fff; border-radius: 8px; cursor: pointer; }
+    button {
+      height: 36px; padding: 0 12px;
+      border: 1px solid #c9ced6; background: #fff; border-radius: 8px; cursor: pointer;
+    }
     .chk { display: grid; grid-auto-flow: column; align-items: center; gap: 6px; white-space: nowrap; }
 
-    .wrap { display: grid; grid-template-rows: auto 1fr; height: calc(100% - var(--topbar-h)); }
+    .wrap { height: calc(100% - var(--topbar-h)); display: grid; grid-template-rows: auto 1fr; }
 
-    .editor-wrap { padding: 10px; transition: opacity .15s ease; }
-    .editor-wrap.locked textarea { pointer-events: none; user-select: none; filter: grayscale(.3) opacity(.9); }
+    .editor-wrap { padding: var(--pad); }
     .editor-wrap.collapsed { display: none; }
 
     textarea {
-      width: 100%; height: 26vh; resize: vertical; box-sizing: border-box; padding: 10px;
+      width: 100%; height: 26vh; resize: vertical; padding: 10px;
       border: 1px solid #d6d9de; border-radius: 8px; background: #fff;
       font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; tab-size: 2; white-space: pre;
       overscroll-behavior: contain;
     }
 
-    .stage-outer {
-      margin: 0 10px 10px; display: grid; place-items: start center; overflow: hidden;
-      background: #e9ecf1; border: 1px solid #d6d9de; border-radius: 10px; padding: 10px;
+    .stage {
+      padding: 0 var(--pad) var(--pad);
+      width: 100%; height: 100%; overflow: auto; /* внешний скролл, не мешаем внутреннему коду */
+      display: grid; grid-template-columns: 1fr; align-content: start;
     }
-    .stage-scale { transform-origin: top left; will-change: transform; }
-    /* ПК: ширина результата = 100% контейнера, но не больше 1920; соотношение 16:9 */
+    /* Результат: ширина 100% контейнера (ПК), но не больше 1920; по центру. Высота задаём скриптом. */
     .desk {
-      width: 100%; max-width: var(--desk-max-w);
-      aspect-ratio: 16 / 9;
+      width: 100%; max-width: var(--max-w); margin: 0 auto;
       background: #fff; border: 1px solid #ccd2da; border-radius: 8px; overflow: hidden; position: relative;
       box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 8px 30px rgba(0,0,0,.06);
+      height: 480px; /* стартовое значение до первого пересчёта */
     }
     .desk > iframe { width: 100%; height: 100%; border: 0; display: block; background: #fff; }
-
-    .zoom { display: grid; grid-auto-flow: column; gap: 6px; align-items: center; margin-left: 8px; white-space: nowrap; }
-    .zoom .val { min-width: 54px; text-align: center; }
   </style>
 </head>
 <body>
@@ -62,26 +63,21 @@
     <label class="chk" title="Убрать ненужный текст до и после содержимого HTML-страницы">
       <input type="checkbox" id="sanitize" checked> очистить лишний текст
     </label>
-    <label class="chk"><input type="checkbox" id="lockEditor"> блокировать прокрутку редактора</label>
     <label class="chk"><input type="checkbox" id="collapseEditor"> свернуть редактор</label>
-    <div class="zoom">
-      <button id="zMinus">–</button><div class="val" id="zVal">auto</div><button id="zPlus">+</button><button id="zReset">100%</button>
-    </div>
   </div>
   <div class="spacer"></div>
 
   <div class="wrap">
     <div class="editor-wrap" id="editorWrap">
-      <textarea id="code" placeholder="Вставьте HTML/JS/CSS. Можно вставлять сообщение целиком — включена очистка до/после HTML."></textarea>
+      <textarea id="code" placeholder="Вставьте HTML/JS/CSS. Можно вставлять сообщение целиком — очистка удалит лишний текст до/после HTML."></textarea>
     </div>
 
-    <div class="stage-outer">
-      <div class="stage-scale" id="stageScale">
-        <div class="desk">
-          <iframe id="view"
-                  sandbox="allow-scripts allow-forms allow-modals allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-downloads">
-          </iframe>
-        </div>
+    <div class="stage">
+      <div class="desk" id="desk">
+        <!-- максимум прав внутри: формы, загрузки, попапы, скрипты, same-origin для работы JS -->
+        <iframe id="view"
+          sandbox="allow-scripts allow-forms allow-modals allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-downloads allow-same-origin">
+        </iframe>
       </div>
     </div>
   </div>
