@@ -2,19 +2,21 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8" />
-  <title>Desktop Runner</title>
+  <title>Desktop Runner — чистый интерфейс</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
   <style>
     :root { --topbar-h: 38px; --pad: 8px; --max-w: 1920px; }
     * { box-sizing: border-box; }
     html, body { height: 100%; margin: 0; }
-    body { font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Noto Sans"; background: #f6f7f9; color: #111; overflow: hidden; }
+    body {
+      font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Noto Sans";
+      background: #f6f7f9; color: #111; overflow: hidden;
+    }
 
-    /* Узкая постоянная панель управления */
     .topbar {
       position: fixed; inset: 0 0 auto 0; height: var(--topbar-h);
-      padding: 4px var(--pad);
+      padding: 4px 4px; /* уменьшен отступ справа и слева */
       background: #eef0f3;
       border-bottom: 1px solid #d6d9de; z-index: 10;
       display: grid; grid-auto-flow: column; align-items: center; gap: 6px;
@@ -24,33 +26,21 @@
     button, label { font: inherit; }
     button {
       height: 28px; padding: 0 10px;
-      border: 1px solid #c9ced6; background: #fff; color:#111; border-radius: 8px; cursor: pointer;
+      border: 1px solid #c9ced6; background: #fff; color:#111;
+      border-radius: 8px; cursor: pointer;
       display: grid; place-items: center; white-space: nowrap;
     }
-    button[disabled] {
-      background: #eee; color: #999; border-color: #ddd; cursor: not-allowed;
-    }
+    button[disabled] { background: #eee; color: #999; border-color: #ddd; cursor: not-allowed; }
 
-    /* управляющая (показать/скрыть редактор) */
     .btn-primary { background: #2563eb; border-color: #1d4ed8; color: #fff; }
     .btn-primary:hover { filter: brightness(0.97); }
 
-    /* кнопка запуска в разных состояниях */
     #run.running { background: #3b82f6; color: #fff; border-color: #2563eb; cursor: progress; }
-    #run.live { background: #16a34a; color: #fff; border-color: #15803d; }
-    #run.error { background: #dc2626; color: #fff; border-color: #b91c1c; }
+    #run.live    { background: #16a34a; color: #fff; border-color: #15803d; }
+    #run.error   { background: #dc2626; color: #fff; border-color: #b91c1c; }
 
     .chk { display: grid; grid-auto-flow: column; align-items: center; gap: 6px; white-space: nowrap; }
     .chk input { transform: translateY(1px); }
-
-    .status-chip {
-      font-size: 12px; padding: 2px 8px; border-radius: 8px;
-      border: 1px solid transparent; margin-left: 6px;
-      user-select: none; transition: background .2s ease;
-    }
-    .chip-live { background: #dcfce7; border-color: #16a34a; color: #166534; }
-    .chip-dirty { background: #fef9c3; border-color: #eab308; color: #854d0e; }
-    .chip-error { background: #fee2e2; border-color: #dc2626; color: #991b1b; }
 
     .wrap { height: calc(100% - var(--topbar-h)); display: grid; grid-template-rows: auto 1fr; }
     .editor-wrap { padding: var(--pad); }
@@ -72,7 +62,6 @@
     }
     .desk > iframe { width: 100%; height: 100%; border: 0; display: block; background: #fff; }
 
-    /* Toast */
     .toast {
       position: fixed; top: calc(var(--topbar-h) + 8px); left: 50%; transform: translateX(-50%);
       background: rgba(33, 37, 41, 0.92); color: #fff; padding: 6px 10px;
@@ -80,6 +69,8 @@
       transition: opacity .15s ease;
     }
     .toast.show { opacity: 1; }
+
+    #toggleEditorIcon { width: 28px; padding: 0; font-size: 16px; line-height: 1; }
 
     @media (max-width: 420px) {
       .topbar { gap: 4px; }
@@ -90,6 +81,7 @@
 </head>
 <body>
   <div class="topbar" id="topbar">
+    <button id="toggleEditorIcon" title="Скрыть редактор">🔽</button>
     <button id="paste">Вставить</button>
     <button id="run" disabled>Запустить</button>
     <button id="clear">Очистить</button>
@@ -97,7 +89,6 @@
       <input type="checkbox" id="sanitize" checked> очистить лишний текст
     </label>
     <button id="toggleEditor" class="btn-primary">Скрыть редактор</button>
-    <div id="statusChip" class="status-chip"></div>
   </div>
   <div class="spacer"></div>
 
@@ -116,6 +107,177 @@
   </div>
 
   <div id="toast" class="toast"></div>
-  <script src="runner.js"></script>
+
+  <script>
+  (function () {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
+
+    function init() {
+      const codeEl = document.getElementById('code');
+      const pasteBtn = document.getElementById('paste');
+      const runBtn = document.getElementById('run');
+      const clearBtn = document.getElementById('clear');
+      const sanitizeEl = document.getElementById('sanitize');
+      const toggleEditorBtn = document.getElementById('toggleEditor');
+      const toggleEditorIcon = document.getElementById('toggleEditorIcon');
+      const editorWrap = document.getElementById('editorWrap');
+      const desk = document.getElementById('desk');
+      const toast = document.getElementById('toast');
+      let iframe = document.getElementById('view');
+
+      let lastCode = '';
+      let timer;
+
+      function showToast(text) {
+        toast.textContent = text;
+        toast.classList.add('show');
+        clearTimeout(showToast._t);
+        showToast._t = setTimeout(() => toast.classList.remove('show'), 900);
+      }
+
+      function layout() {
+        const topbarH = document.getElementById('topbar').offsetHeight;
+        const editorH = editorWrap.offsetParent ? editorWrap.offsetHeight : 0;
+        const avail = window.innerHeight - topbarH - editorH - 8;
+        desk.style.height = Math.max(240, avail) + 'px';
+      }
+      window.addEventListener('resize', layout);
+
+      function updateRunState() {
+        runBtn.disabled = !codeEl.value.trim();
+      }
+
+      function markRunning() {
+        runBtn.classList.add('running');
+        runBtn.textContent = 'Запуск...';
+        runBtn.disabled = true;
+      }
+      function markLive() {
+        runBtn.classList.remove('running', 'error');
+        runBtn.classList.add('live');
+        runBtn.textContent = 'Перезапустить';
+        runBtn.disabled = false;
+      }
+      function markError() {
+        runBtn.classList.remove('running', 'live');
+        runBtn.classList.add('error');
+        runBtn.textContent = 'Ошибка';
+        runBtn.disabled = false;
+      }
+
+      function isEditorVisible() {
+        return !editorWrap.classList.contains('collapsed');
+      }
+      function setEditorState(show) {
+        editorWrap.classList.toggle('collapsed', !show);
+        toggleEditorBtn.textContent = show ? 'Скрыть редактор' : 'Показать редактор';
+        toggleEditorIcon.textContent = show ? '🔽' : '🔼';
+        toggleEditorIcon.title = show ? 'Скрыть редактор' : 'Показать редактор';
+        layout();
+      }
+
+      codeEl.addEventListener('input', updateRunState);
+      toggleEditorBtn.addEventListener('click', () => setEditorState(!isEditorVisible()));
+      toggleEditorIcon.addEventListener('click', () => setEditorState(!isEditorVisible()));
+
+      pasteBtn.addEventListener('click', async () => {
+        let inserted = null;
+        try {
+          if (navigator.clipboard?.readText) inserted = await navigator.clipboard.readText();
+        } catch {}
+        if (!inserted) inserted = prompt('Вставьте текст вручную:') || '';
+        const cleaned = sanitizeEl.checked ? extractHtml(inserted) : inserted;
+        codeEl.value = cleaned;
+        updateRunState();
+        showToast('Вставлено');
+        setEditorState(false);
+        executeCode(wrapDocument(cleaned));
+      });
+
+      clearBtn.addEventListener('click', () => {
+        codeEl.value = '';
+        updateRunState();
+        resetIframe();
+        showToast('Очищено');
+        setEditorState(true);
+      });
+
+      runBtn.addEventListener('click', () => {
+        if (runBtn.disabled) return;
+        const raw = codeEl.value;
+        const cleaned = sanitizeEl.checked ? extractHtml(raw) : raw;
+        if (isEditorVisible()) setEditorState(false);
+        executeCode(wrapDocument(cleaned));
+      });
+
+      function executeCode(doc) {
+        markRunning();
+        resetIframe();
+        const fresh = document.createElement('iframe');
+        fresh.id = 'view';
+        fresh.setAttribute('sandbox',
+          'allow-scripts allow-forms allow-modals allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-downloads allow-same-origin');
+        fresh.srcdoc = doc;
+        desk.replaceChild(fresh, iframe);
+        iframe = fresh;
+
+        clearTimeout(timer);
+        timer = setTimeout(() => markError(), 5000);
+        iframe.onload = () => { clearTimeout(timer); markLive(); showToast('Запущено'); };
+        iframe.onerror = () => { clearTimeout(timer); markError(); };
+      }
+
+      function resetIframe() {
+        const blank = document.createElement('iframe');
+        blank.id = 'view';
+        blank.setAttribute('sandbox',
+          'allow-scripts allow-forms allow-modals allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-downloads allow-same-origin');
+        blank.srcdoc = '<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>';
+        desk.replaceChild(blank, iframe);
+        iframe = blank;
+      }
+
+      function extractHtml(text) {
+        let t = text || '';
+        const fence = /```(?:html|HTML|htm|HTM)?\s*([\s\S]*?)```/;
+        const mFence = t.match(fence);
+        if (mFence) t = mFence[1];
+        const low = t.toLowerCase();
+        const iDoctype = low.indexOf('<!doctype');
+        const iHtml = low.indexOf('<html');
+        let start = -1;
+        if (iDoctype >= 0 && iHtml >= 0) start = Math.min(iDoctype, iHtml);
+        else start = (iDoctype >= 0) ? iDoctype : iHtml;
+        if (start >= 0) {
+          t = t.slice(start);
+          const endTag = t.toLowerCase().lastIndexOf('</html>');
+          if (endTag >= 0) t = t.slice(0, endTag + 7);
+          return t.trim();
+        }
+        return t.trim();
+      }
+
+      function wrapDocument(src) {
+        const hasHtml = /<\s*html[\s>]/i.test(src);
+        const hasHead = /<\s*head[\s>]/i.test(src);
+        const viewport = `<meta name="viewport" content="width=device-width, initial-scale=1">`;
+        if (hasHtml) {
+          if (hasHead) {
+            if (!/name=["']viewport["']/i.test(src))
+              return src.replace(/<\s*head(\s[^>]*)?>/i, m => `${m}${viewport}`);
+            return src;
+          }
+          return src.replace(/<\s*html([^>]*)>/i, (m, attrs) => `<html${attrs}><head>${viewport}</head>`);
+        }
+        return `<!doctype html><html><head><meta charset="utf-8">${viewport}</head><body>${src}</body></html>`;
+      }
+
+      updateRunState();
+      layout();
+      setEditorState(true);
+    }
+  })();
+  </script>
 </body>
 </html>
