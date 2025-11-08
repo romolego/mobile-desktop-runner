@@ -9,36 +9,76 @@
     :root { --topbar-h: 38px; --pad: 8px; --max-w: 1920px; }
     * { box-sizing: border-box; }
     html, body { height: 100%; margin: 0; }
-    body { font: 14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,Arial,"Noto Sans"; background:#f6f7f9; color:#111; overflow:hidden; }
-    .topbar { position:fixed; inset:0 0 auto 0; height:var(--topbar-h); padding:4px; background:#eef0f3; border-bottom:1px solid #d6d9de; z-index:10; display:grid; grid-auto-flow:column; align-items:center; gap:6px; }
-    .spacer { height:var(--topbar-h); }
-    button,label { font:inherit; }
-    button { height:28px; padding:0 10px; border:1px solid #c9ced6; background:#fff; color:#111; border-radius:8px; cursor:pointer; display:grid; place-items:center; white-space:nowrap; }
-    button[disabled]{ background:#eee; color:#999; border-color:#ddd; cursor:not-allowed; }
-    .btn-primary{ background:#2563eb; border-color:#1d4ed8; color:#fff; }
-    .btn-primary:hover{ filter:brightness(.97); }
-    #run.running{ background:#3b82f6; color:#fff; border-color:#2563eb; cursor:progress; }
-    #run.live{ background:#16a34a; color:#fff; border-color:#15803d; }
-    #run.error{ background:#dc2626; color:#fff; border-color:#b91c1c; }
-    .chk{ display:grid; grid-auto-flow:column; align-items:center; gap:6px; white-space:nowrap; }
-    .chk input{ transform:translateY(1px); }
-    .grow{ width:1px; margin-left:auto; }
-    .wrap{ height:calc(100% - var(--topbar-h)); display:grid; grid-template-rows:auto 1fr; }
-    .editor-wrap{ padding:var(--pad); }
-    .editor-wrap.collapsed{ display:none; }
-    textarea{
-      width:100%; height:26vh; resize:vertical; padding:10px;
-      border:1px solid #d6d9de; border-radius:8px; background:#fff;
-      font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
-      tab-size:2; white-space:pre; overscroll-behavior:contain;
+    body {
+      font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Noto Sans";
+      background: #f6f7f9; color: #111; overflow: hidden;
     }
-    .stage{ padding:0 var(--pad) var(--pad); width:100%; height:100%; overflow:auto; display:grid; }
-    .desk{ width:100%; max-width:var(--max-w); margin:0 auto; background:#fff; border:1px solid #ccd2da; border-radius:8px; overflow:hidden; position:relative; box-shadow:0 1px 3px rgba(0,0,0,.08),0 8px 30px rgba(0,0,0,.06); height:480px; }
-    .desk>iframe{ width:100%; height:100%; border:0; display:block; background:#fff; }
-    .toast{ position:fixed; top:calc(var(--topbar-h) + 8px); left:50%; transform:translateX(-50%); background:rgba(33,37,41,.92); color:#fff; padding:6px 10px; border-radius:8px; font-size:12px; z-index:20; opacity:0; pointer-events:none; transition:opacity .15s ease; }
-    .toast.show{ opacity:1; }
-    #toggleEditorIcon{ width:28px; padding:0; font-size:16px; line-height:1; }
-    @media (max-width:420px){ .topbar{ gap:4px; } button{ padding:0 8px; } .chk{ gap:4px; } }
+
+    .topbar {
+      position: fixed; inset: 0 0 auto 0; height: var(--topbar-h);
+      padding: 4px 4px;
+      background: #eef0f3;
+      border-bottom: 1px solid #d6d9de; z-index: 10;
+      display: grid; grid-auto-flow: column; align-items: center; gap: 6px;
+    }
+    .spacer { height: var(--topbar-h); }
+
+    button, label { font: inherit; }
+    button {
+      height: 28px; padding: 0 10px;
+      border: 1px solid #c9ced6; background: #fff; color:#111;
+      border-radius: 8px; cursor: pointer;
+      display: grid; place-items: center; white-space: nowrap;
+    }
+    button[disabled] { background: #eee; color: #999; border-color: #ddd; cursor: not-allowed; }
+
+    .btn-primary { background: #2563eb; border-color: #1d4ed8; color: #fff; }
+    .btn-primary:hover { filter: brightness(0.97); }
+
+    #run.running { background: #3b82f6; color: #fff; border-color: #2563eb; cursor: progress; }
+    #run.live    { background: #16a34a; color: #fff; border-color: #15803d; }
+    #run.error   { background: #dc2626; color: #fff; border-color: #b91c1c; }
+
+    .chk { display: grid; grid-auto-flow: column; align-items: center; gap: 6px; white-space: nowrap; }
+    .chk input { transform: translateY(1px); }
+
+    .grow { width: 1px; margin-left: auto; }
+
+    .wrap { height: calc(100% - var(--topbar-h)); display: grid; grid-template-rows: auto 1fr; }
+    .editor-wrap { padding: var(--pad); }
+    .editor-wrap.collapsed { display: none; }
+
+    textarea {
+      width: 100%; height: 26vh; resize: vertical; padding: 10px;
+      border: 1px solid #d6d9de; border-radius: 8px; background: #fff;
+      font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      tab-size: 2; white-space: pre; overscroll-behavior: contain;
+    }
+
+    .stage { padding: 0 var(--pad) var(--pad); width: 100%; height: 100%; overflow: auto; display: grid; }
+    .desk {
+      width: 100%; max-width: var(--max-w); margin: 0 auto;
+      background: #fff; border: 1px solid #ccd2da; border-radius: 8px; overflow: hidden;
+      position: relative; box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 8px 30px rgba(0,0,0,.06);
+      height: 480px;
+    }
+    .desk > iframe { width: 100%; height: 100%; border: 0; display: block; background: #fff; }
+
+    .toast {
+      position: fixed; top: calc(var(--topbar-h) + 8px); left: 50%; transform: translateX(-50%);
+      background: rgba(33, 37, 41, 0.92); color: #fff; padding: 6px 10px;
+      border-radius: 8px; font-size: 12px; z-index: 20; opacity: 0; pointer-events: none;
+      transition: opacity .15s ease;
+    }
+    .toast.show { opacity: 1; }
+
+    #toggleEditorIcon { width: 28px; padding: 0; font-size: 16px; line-height: 1; }
+
+    @media (max-width: 420px) {
+      .topbar { gap: 4px; }
+      button { padding: 0 8px; }
+      .chk { gap: 4px; }
+    }
   </style>
 </head>
 <body>
@@ -60,6 +100,7 @@
     <div class="editor-wrap" id="editorWrap">
       <textarea id="code" placeholder="Вставьте HTML/JS/CSS. Можно вставлять сообщение целиком — очистка удалит лишний текст до/после HTML."></textarea>
     </div>
+
     <div class="stage">
       <div class="desk" id="desk">
         <iframe id="view"
@@ -72,15 +113,11 @@
   <div id="toast" class="toast"></div>
 
   <script>
-  (function(){
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once:true });
+  (function () {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
     else init();
 
-    function init(){
-      const AC = new AbortController();
-      const { signal } = AC;
-
-      // Elements
+    function init() {
       const codeEl = document.getElementById('code');
       const pasteBtn = document.getElementById('paste');
       const runBtn = document.getElementById('run');
@@ -91,196 +128,203 @@
       const toggleEditorIcon = document.getElementById('toggleEditorIcon');
       const editorWrap = document.getElementById('editorWrap');
       const desk = document.getElementById('desk');
-      const topbar = document.getElementById('topbar');
       const toast = document.getElementById('toast');
-
-      const SANDBOX = 'allow-scripts allow-forms allow-modals allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-downloads allow-same-origin';
       let iframe = document.getElementById('view');
-      let timer = null, raf = 0;
 
-      // Helpers
-      function showToast(t){ toast.textContent=t; toast.classList.add('show'); clearTimeout(showToast._t); showToast._t=setTimeout(()=>toast.classList.remove('show'),1000); }
-      function markRunning(){ runBtn.classList.add('running'); runBtn.classList.remove('error','live'); runBtn.textContent='Запуск...'; runBtn.disabled=true; }
-      function markLive(){ runBtn.classList.add('live'); runBtn.classList.remove('running','error'); runBtn.textContent='Перезапустить'; runBtn.disabled=false; }
-      function markError(){ runBtn.classList.add('error'); runBtn.classList.remove('running','live'); runBtn.textContent='Ошибка'; runBtn.disabled=false; }
-      function isEditorVisible(){ return !editorWrap.classList.contains('collapsed'); }
-      function setEditorState(show){
+      let timer;
+
+      function showToast(text) {
+        toast.textContent = text;
+        toast.classList.add('show');
+        clearTimeout(showToast._t);
+        showToast._t = setTimeout(() => toast.classList.remove('show'), 900);
+      }
+
+      function layout() {
+        const topbarH = document.getElementById('topbar').offsetHeight;
+        const editorH = editorWrap.offsetParent ? editorWrap.offsetHeight : 0;
+        const avail = window.innerHeight - topbarH - editorH - 8;
+        desk.style.height = Math.max(240, avail) + 'px';
+      }
+      window.addEventListener('resize', layout);
+
+      function updateRunState() {
+        runBtn.disabled = !codeEl.value.trim();
+      }
+
+      function markRunning() {
+        runBtn.classList.add('running');
+        runBtn.textContent = 'Запуск...';
+        runBtn.disabled = true;
+      }
+      function markLive() {
+        runBtn.classList.remove('running', 'error');
+        runBtn.classList.add('live');
+        runBtn.textContent = 'Перезапустить';
+        runBtn.disabled = false;
+      }
+      function markError() {
+        runBtn.classList.remove('running', 'live');
+        runBtn.classList.add('error');
+        runBtn.textContent = 'Ошибка';
+        runBtn.disabled = false;
+      }
+
+      function isEditorVisible() {
+        return !editorWrap.classList.contains('collapsed');
+      }
+      function setEditorState(show) {
         editorWrap.classList.toggle('collapsed', !show);
         toggleEditorBtn.textContent = show ? 'Скрыть редактор' : 'Показать редактор';
         toggleEditorIcon.textContent = show ? '🔽' : '🔼';
         toggleEditorIcon.title = show ? 'Скрыть редактор' : 'Показать редактор';
-        requestLayout();
+        layout();
       }
-      function requestLayout(){
-        if (raf) return;
-        raf = requestAnimationFrame(()=>{ raf=0;
-          const h = window.innerHeight - topbar.offsetHeight - (editorWrap.offsetParent ? editorWrap.offsetHeight : 0) - 8;
-          desk.style.height = Math.max(240, h) + 'px';
-        });
-      }
-      const ro = new ResizeObserver(requestLayout);
-      ro.observe(editorWrap); ro.observe(topbar);
-      window.addEventListener('resize', requestLayout, { signal, passive:true });
 
-      // Text processing
-      const META_CHARSET = '<meta charset="utf-8">';
-      const META_VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1">';
-      function stripControl(t){ return (t||'').replace(/^\uFEFF/,'').replace(/^[\u200B\u200C\u200D\u2060]+/,''); }
-      function extractHtmlOrFragment(src){
-        let t = stripControl(src);
+      codeEl.addEventListener('input', updateRunState);
+      toggleEditorBtn.addEventListener('click', () => setEditorState(!isEditorVisible()));
+      toggleEditorIcon.addEventListener('click', () => setEditorState(!isEditorVisible()));
+
+      pasteBtn.addEventListener('click', async () => {
+        let inserted = null;
+        try {
+          if (navigator.clipboard?.readText) inserted = await navigator.clipboard.readText();
+        } catch {}
+        if (!inserted) inserted = prompt('Вставьте текст вручную:') || '';
+        const cleaned = sanitizeEl.checked ? extractHtml(inserted) : stripBOM(inserted).trim();
+        codeEl.value = cleaned;
+        updateRunState();
+        showToast('Вставлено');
+        setEditorState(false);
+        const doc = wrapDocument(cleaned);
+        executeCode(doc);
+      });
+
+      clearBtn.addEventListener('click', () => {
+        codeEl.value = '';
+        updateRunState();
+        resetIframe();
+        showToast('Очищено');
+        setEditorState(true);
+      });
+
+      runBtn.addEventListener('click', () => {
+        if (runBtn.disabled) return;
+        const raw = codeEl.value;
+        const cleaned = sanitizeEl.checked ? extractHtml(raw) : stripBOM(raw).trim();
+        if (isEditorVisible()) setEditorState(false);
+        const doc = wrapDocument(cleaned);
+        executeCode(doc);
+      });
+
+      exportBtn.addEventListener('click', () => {
+        const raw = codeEl.value;
+        if (!raw.trim()) { showToast('Нет данных для сохранения'); return; }
+        const cleaned = sanitizeEl.checked ? extractHtml(raw) : stripBOM(raw).trim();
+        const doc = wrapDocument(cleaned);
+        downloadHtml(doc);
+      });
+
+      function executeCode(doc) {
+        markRunning();
+        resetIframe();
+        const fresh = document.createElement('iframe');
+        fresh.id = 'view';
+        fresh.setAttribute('sandbox',
+          'allow-scripts allow-forms allow-modals allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-downloads allow-same-origin');
+        fresh.srcdoc = doc;
+        desk.replaceChild(fresh, iframe);
+        iframe = fresh;
+
+        clearTimeout(timer);
+        timer = setTimeout(() => markError(), 5000);
+        iframe.onload = () => { clearTimeout(timer); markLive(); showToast('Запущено'); };
+        iframe.onerror = () => { clearTimeout(timer); markError(); };
+      }
+
+      function resetIframe() {
+        const blank = document.createElement('iframe');
+        blank.id = 'view';
+        blank.setAttribute('sandbox',
+          'allow-scripts allow-forms allow-modals allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-downloads allow-same-origin');
+        blank.srcdoc = '<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>';
+        desk.replaceChild(blank, iframe);
+        iframe = blank;
+      }
+
+      // Удаление BOM/ZWSP в начале
+      function stripBOM(t) {
+        return (t || '').replace(/^\uFEFF/, '').replace(/^\u200B+/, '');
+      }
+
+      // Аккуратная вырезка HTML из «сообщения целиком»
+      function extractHtml(text) {
+        let t = stripBOM(text || '');
         const fence = /```(?:html?|HTML?)?\s*([\s\S]*?)```/;
-        const m = t.match(fence);
-        if (m) t = m[1];
+        const mFence = t.match(fence);
+        if (mFence) t = mFence[1];
 
         const low = t.toLowerCase();
-        const iDoc = low.indexOf('<!doctype');
+        const iDoctype = low.indexOf('<!doctype');
         const iHtml = low.indexOf('<html');
         let start = -1;
-        if (iDoc >= 0 && iHtml >= 0) start = Math.min(iDoc, iHtml);
-        else start = (iDoc >= 0) ? iDoc : iHtml;
-
+        if (iDoctype >= 0 && iHtml >= 0) start = Math.min(iDoctype, iHtml);
+        else start = (iDoctype >= 0) ? iDoctype : iHtml;
         if (start >= 0) {
           t = t.slice(start);
-          const end = t.toLowerCase().lastIndexOf('</html>');
-          if (end >= 0) t = t.slice(0, end + 7);
+          const endTag = t.toLowerCase().lastIndexOf('</html>');
+          if (endTag >= 0) t = t.slice(0, endTag + 7);
           return t.trim();
         }
-        return t.trim(); // фрагмент без <html>
+        return t.trim();
       }
-      function buildDocument(userSrc){
-        let s = stripControl(userSrc||'');
+
+      // Гарантируем <meta charset> и viewport в <head>
+      function wrapDocument(src) {
+        let s = stripBOM(src || '');
         const hasHtml = /<\s*html[\s>]/i.test(s);
         const hasHead = /<\s*head[\s>]/i.test(s);
         const hasCharset = /<meta\s+charset=["']?utf-8["']?\s*>/i.test(s);
         const hasViewport = /<meta[^>]+name=["']viewport["'][^>]*>/i.test(s);
-        const errorHook = `<script>(function(){window.onerror=function(m,src,l,c){try{parent.postMessage({__runner_error__:String(m)},'*')}catch(e){}};})();</script>`;
+        const charset = `<meta charset="utf-8">`;
+        const viewport = `<meta name="viewport" content="width=device-width, initial-scale=1">`;
 
-        if (hasHtml){
-          if (hasHead){
-            s = s.replace(/<\s*head(\s[^>]*)?>/i, (m)=> m + (hasCharset?'':META_CHARSET) + (hasViewport?'':META_VIEWPORT) + errorHook);
+        if (hasHtml) {
+          if (hasHead) {
+            // Вставляем недостающие мета в начало <head>
+            s = s.replace(/<\s*head(\s[^>]*)?>/i, (m) => {
+              let inject = '';
+              if (!hasCharset) inject += charset;
+              if (!hasViewport) inject += viewport;
+              return m + inject;
+            });
             return s;
           }
-          return s.replace(/<\s*html([^>]*)>/i, (m, attrs)=>`<html${attrs}><head>${META_CHARSET}${META_VIEWPORT}${errorHook}</head>`);
+          // Есть <html>, но нет <head>
+          return s.replace(/<\s*html([^>]*)>/i, (m, attrs) =>
+            `<html${attrs}><head>${charset}${viewport}</head>`
+          );
         }
-        return `<!doctype html><html><head>${META_CHARSET}${META_VIEWPORT}${errorHook}</head><body>${s}</body></html>`;
+        // Фрагмент — оборачиваем в полноценный документ
+        return `<!doctype html><html><head>${charset}${viewport}</head><body>${s}</body></html>`;
       }
 
-      // Enable/disable logic — гарантированная активация
-      let enableTick = 0;
-      function updateRunState(){
-        // Определяем фактический исполняемый контент (с учётом очистки)
-        const raw = codeEl.value;
-        const cleaned = sanitizeEl.checked ? extractHtmlOrFragment(raw) : stripControl(raw);
-        const on = !!cleaned.trim();
-        runBtn.disabled = !on;
-      }
-      // Троттлинг input/paste/keyup, чтобы успел подставиться буфер
-      function scheduleUpdate(){
-        cancelAnimationFrame(enableTick);
-        enableTick = requestAnimationFrame(updateRunState);
-      }
-
-      // Execution
-      function resetIframe(){
-        const blank = document.createElement('iframe');
-        blank.id='view'; blank.setAttribute('sandbox', SANDBOX);
-        blank.srcdoc='<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>';
-        desk.replaceChild(blank, iframe); iframe = blank;
-      }
-      function executeCode(doc){
-        markRunning();
-        const fresh = document.createElement('iframe');
-        fresh.id='view'; fresh.setAttribute('sandbox', SANDBOX); fresh.srcdoc = doc;
-        desk.replaceChild(fresh, iframe); iframe = fresh;
-        clearTimeout(timer);
-        timer = setTimeout(()=>markError(), 6000);
-        iframe.addEventListener('load', ()=>{ clearTimeout(timer); markLive(); showToast('Запущено'); }, { once:true });
-        iframe.addEventListener('error', ()=>{ clearTimeout(timer); markError(); }, { once:true });
-      }
-
-      // Message channel from child
-      window.addEventListener('message', (ev)=>{
-        if (ev?.data && ev.data.__runner_error__){ markError(); showToast('Ошибка в коде: '+ev.data.__runner_error__); }
-      }, { signal });
-
-      // Editor events — добавлен строгий перехват Ctrl+V
-      codeEl.addEventListener('input', scheduleUpdate, { signal });
-      codeEl.addEventListener('keyup', scheduleUpdate, { signal, passive:true });
-      codeEl.addEventListener('paste', (e)=>{
-        // Даём браузеру вставить, затем пересчитываем состояние
-        setTimeout(()=>{
-          // Если очистка включена и она «съела» всё — делаем фолбэк на неочищенный текст
-          const rawNow = codeEl.value;
-          if (sanitizeEl.checked){
-            const cleaned = extractHtmlOrFragment(rawNow);
-            if (!cleaned.trim() && rawNow.trim()){
-              // фолбэк: без очистки
-              codeEl.value = stripControl(rawNow);
-            } else {
-              codeEl.value = cleaned;
-            }
-          }
-          scheduleUpdate();
-        }, 0);
-      }, { signal });
-
-      // Topbar actions
-      toggleEditorBtn.addEventListener('click', ()=> setEditorState(!isEditorVisible()), { signal });
-      toggleEditorIcon.addEventListener('click', ()=> setEditorState(!isEditorVisible()), { signal });
-
-      pasteBtn.addEventListener('click', async ()=>{
-        let inserted = null;
-        try{ if (navigator.clipboard?.readText) inserted = await navigator.clipboard.readText(); }catch{}
-        if (inserted == null) inserted = prompt('Вставьте текст вручную:') || '';
-        // Очистка/фолбэк
-        const cleaned = sanitizeEl.checked ? extractHtmlOrFragment(inserted) : stripControl(inserted).trim();
-        codeEl.value = cleaned.trim() ? cleaned : stripControl(inserted).trim();
-        scheduleUpdate();
-        showToast('Вставлено');
-        setEditorState(false);
-        if (!runBtn.disabled) executeCode(buildDocument(codeEl.value));
-      }, { signal });
-
-      clearBtn.addEventListener('click', ()=>{
-        codeEl.value=''; scheduleUpdate(); resetIframe(); showToast('Очищено'); setEditorState(true);
-      }, { signal });
-
-      runBtn.addEventListener('click', ()=>{
-        if (runBtn.disabled) return;
-        const raw = codeEl.value;
-        const src = sanitizeEl.checked ? extractHtmlOrFragment(raw) : stripControl(raw);
-        if (isEditorVisible()) setEditorState(false);
-        executeCode(buildDocument(src));
-      }, { signal });
-
-      exportBtn.addEventListener('click', ()=>{
-        const raw = codeEl.value;
-        if (!raw.trim()){ showToast('Нет данных для сохранения'); return; }
-        const doc = buildDocument(sanitizeEl.checked ? extractHtmlOrFragment(raw) : stripControl(raw));
-        const blob = new Blob([doc], { type:'text/html;charset=utf-8' });
+      function downloadHtml(doc) {
+        const blob = new Blob([doc], { type: 'text/html;charset=utf-8' });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href=url; a.download=makeFileNameFromTitle(doc) || 'page.html';
-        document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),0);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'page.html';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 0);
         showToast('HTML сохранён');
-      }, { signal });
-
-      function makeFileNameFromTitle(doc){
-        const m = /<title>([^<]{1,120})<\/title>/i.exec(doc);
-        if (!m) return '';
-        return (m[1]||'').trim().replace(/[\\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim().slice(0,80)+'.html';
       }
 
-      // Init
-      scheduleUpdate();
+      updateRunState();
+      layout();
       setEditorState(true);
-      requestLayout();
-
-      // Cleanup
-      window.addEventListener('unload', ()=>{
-        try{ ro.disconnect(); }catch{}
-        try{ AC.abort(); }catch{}
-        cancelAnimationFrame(raf); clearTimeout(timer);
-      }, { once:true });
     }
   })();
   </script>
