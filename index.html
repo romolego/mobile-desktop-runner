@@ -13,16 +13,14 @@
       font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Noto Sans";
       background: #f6f7f9; color: #111; overflow: hidden;
     }
-
     .topbar {
       position: fixed; inset: 0 0 auto 0; height: var(--topbar-h);
-      padding: 4px 4px; /* уменьшен отступ справа и слева */
+      padding: 4px 4px;
       background: #eef0f3;
       border-bottom: 1px solid #d6d9de; z-index: 10;
       display: grid; grid-auto-flow: column; align-items: center; gap: 6px;
     }
     .spacer { height: var(--topbar-h); }
-
     button, label { font: inherit; }
     button {
       height: 28px; padding: 0 10px;
@@ -31,28 +29,23 @@
       display: grid; place-items: center; white-space: nowrap;
     }
     button[disabled] { background: #eee; color: #999; border-color: #ddd; cursor: not-allowed; }
-
     .btn-primary { background: #2563eb; border-color: #1d4ed8; color: #fff; }
     .btn-primary:hover { filter: brightness(0.97); }
-
     #run.running { background: #3b82f6; color: #fff; border-color: #2563eb; cursor: progress; }
     #run.live    { background: #16a34a; color: #fff; border-color: #15803d; }
     #run.error   { background: #dc2626; color: #fff; border-color: #b91c1c; }
-
     .chk { display: grid; grid-auto-flow: column; align-items: center; gap: 6px; white-space: nowrap; }
     .chk input { transform: translateY(1px); }
-
+    .grow { width: 1px; margin-left: auto; }
     .wrap { height: calc(100% - var(--topbar-h)); display: grid; grid-template-rows: auto 1fr; }
     .editor-wrap { padding: var(--pad); }
     .editor-wrap.collapsed { display: none; }
-
     textarea {
       width: 100%; height: 26vh; resize: vertical; padding: 10px;
       border: 1px solid #d6d9de; border-radius: 8px; background: #fff;
       font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
       tab-size: 2; white-space: pre; overscroll-behavior: contain;
     }
-
     .stage { padding: 0 var(--pad) var(--pad); width: 100%; height: 100%; overflow: auto; display: grid; }
     .desk {
       width: 100%; max-width: var(--max-w); margin: 0 auto;
@@ -61,7 +54,6 @@
       height: 480px;
     }
     .desk > iframe { width: 100%; height: 100%; border: 0; display: block; background: #fff; }
-
     .toast {
       position: fixed; top: calc(var(--topbar-h) + 8px); left: 50%; transform: translateX(-50%);
       background: rgba(33, 37, 41, 0.92); color: #fff; padding: 6px 10px;
@@ -69,9 +61,7 @@
       transition: opacity .15s ease;
     }
     .toast.show { opacity: 1; }
-
     #toggleEditorIcon { width: 28px; padding: 0; font-size: 16px; line-height: 1; }
-
     @media (max-width: 420px) {
       .topbar { gap: 4px; }
       button { padding: 0 8px; }
@@ -89,6 +79,8 @@
       <input type="checkbox" id="sanitize" checked> очистить лишний текст
     </label>
     <button id="toggleEditor" class="btn-primary">Скрыть редактор</button>
+    <div class="grow"></div>
+    <button id="export">Сохранить HTML</button>
   </div>
   <div class="spacer"></div>
 
@@ -96,7 +88,6 @@
     <div class="editor-wrap" id="editorWrap">
       <textarea id="code" placeholder="Вставьте HTML/JS/CSS. Можно вставлять сообщение целиком — очистка удалит лишний текст до/после HTML."></textarea>
     </div>
-
     <div class="stage">
       <div class="desk" id="desk">
         <iframe id="view"
@@ -110,90 +101,193 @@
 
   <script>
   (function () {
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once:true });
     else init();
 
     function init() {
+      const AC = new AbortController();
+      const { signal } = AC;
+
+      // DOM
       const codeEl = document.getElementById('code');
       const pasteBtn = document.getElementById('paste');
       const runBtn = document.getElementById('run');
       const clearBtn = document.getElementById('clear');
+      const exportBtn = document.getElementById('export');
       const sanitizeEl = document.getElementById('sanitize');
       const toggleEditorBtn = document.getElementById('toggleEditor');
       const toggleEditorIcon = document.getElementById('toggleEditorIcon');
       const editorWrap = document.getElementById('editorWrap');
       const desk = document.getElementById('desk');
+      const topbar = document.getElementById('topbar');
       const toast = document.getElementById('toast');
+
+      // State
       let iframe = document.getElementById('view');
+      let timer = null;
+      let raf = 0;
 
-      let lastCode = '';
-      let timer;
+      // Const
+      const SANDBOX = 'allow-scripts allow-forms allow-modals allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-downloads allow-same-origin';
+      const META_CHARSET = '<meta charset="utf-8">';
+      const META_VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1">';
 
+      // UI helpers
       function showToast(text) {
         toast.textContent = text;
         toast.classList.add('show');
         clearTimeout(showToast._t);
-        showToast._t = setTimeout(() => toast.classList.remove('show'), 900);
+        showToast._t = setTimeout(() => toast.classList.remove('show'), 1000);
       }
-
-      function layout() {
-        const topbarH = document.getElementById('topbar').offsetHeight;
-        const editorH = editorWrap.offsetParent ? editorWrap.offsetHeight : 0;
-        const avail = window.innerHeight - topbarH - editorH - 8;
-        desk.style.height = Math.max(240, avail) + 'px';
-      }
-      window.addEventListener('resize', layout);
-
-      function updateRunState() {
-        runBtn.disabled = !codeEl.value.trim();
-      }
-
       function markRunning() {
-        runBtn.classList.add('running');
-        runBtn.textContent = 'Запуск...';
-        runBtn.disabled = true;
+        runBtn.classList.add('running'); runBtn.classList.remove('error','live');
+        runBtn.textContent = 'Запуск...'; runBtn.disabled = true;
       }
       function markLive() {
-        runBtn.classList.remove('running', 'error');
-        runBtn.classList.add('live');
-        runBtn.textContent = 'Перезапустить';
-        runBtn.disabled = false;
+        runBtn.classList.add('live'); runBtn.classList.remove('running','error');
+        runBtn.textContent = 'Перезапустить'; runBtn.disabled = false;
       }
       function markError() {
-        runBtn.classList.remove('running', 'live');
-        runBtn.classList.add('error');
-        runBtn.textContent = 'Ошибка';
-        runBtn.disabled = false;
+        runBtn.classList.add('error'); runBtn.classList.remove('running','live');
+        runBtn.textContent = 'Ошибка'; runBtn.disabled = false;
       }
-
-      function isEditorVisible() {
-        return !editorWrap.classList.contains('collapsed');
-      }
+      function isEditorVisible() { return !editorWrap.classList.contains('collapsed'); }
       function setEditorState(show) {
         editorWrap.classList.toggle('collapsed', !show);
         toggleEditorBtn.textContent = show ? 'Скрыть редактор' : 'Показать редактор';
         toggleEditorIcon.textContent = show ? '🔽' : '🔼';
         toggleEditorIcon.title = show ? 'Скрыть редактор' : 'Показать редактор';
-        layout();
+        requestLayout();
+      }
+      function updateRunState() { runBtn.disabled = !codeEl.value.trim(); }
+
+      // Layout (ResizeObserver + rAF)
+      const ro = new ResizeObserver(() => requestLayout());
+      ro.observe(editorWrap, { box:'border-box' });
+      ro.observe(topbar, { box:'border-box' });
+
+      window.addEventListener('resize', requestLayout, { signal, passive:true });
+      function requestLayout() {
+        if (raf) return;
+        raf = requestAnimationFrame(() => {
+          raf = 0;
+          const topbarH = topbar.offsetHeight;
+          const editorH = editorWrap.offsetParent ? editorWrap.offsetHeight : 0;
+          const avail = window.innerHeight - topbarH - editorH - 8;
+          desk.style.height = Math.max(240, avail) + 'px';
+        });
       }
 
-      codeEl.addEventListener('input', updateRunState);
-      toggleEditorBtn.addEventListener('click', () => setEditorState(!isEditorVisible()));
-      toggleEditorIcon.addEventListener('click', () => setEditorState(!isEditorVisible()));
+      // Text processing
+      function stripControl(t) {
+        return (t || '')
+          .replace(/^\uFEFF/, '')       // BOM
+          .replace(/^[\u200B\u200C\u200D\u2060]+/, ''); // ZW* at start
+      }
+      function extractHtmlOrFragment(src) {
+        let t = stripControl(src);
+        const fence = /```(?:html?|HTML?)?\s*([\s\S]*?)```/;
+        const m = t.match(fence);
+        if (m) t = m[1];
+
+        const low = t.toLowerCase();
+        const iDoc = low.indexOf('<!doctype');
+        const iHtml = low.indexOf('<html');
+        let start = -1;
+        if (iDoc >= 0 && iHtml >= 0) start = Math.min(iDoc, iHtml);
+        else start = (iDoc >= 0) ? iDoc : iHtml;
+
+        if (start >= 0) {
+          t = t.slice(start);
+          const end = t.toLowerCase().lastIndexOf('</html>');
+          if (end >= 0) t = t.slice(0, end + 7);
+          return t.trim();
+        }
+        return t.trim();
+      }
+      function buildDocument(userSrc) {
+        let s = stripControl(userSrc || '');
+        const hasHtml = /<\s*html[\s>]/i.test(s);
+        const hasHead = /<\s*head[\s>]/i.test(s);
+        const hasCharset = /<meta\s+charset=["']?utf-8["']?\s*>/i.test(s);
+        const hasViewport = /<meta[^>]+name=["']viewport["'][^>]*>/i.test(s);
+
+        // Вставим трекер ошибок в исполняемый документ
+        const errorHook =
+          `<script>
+            (function(){
+              window.onerror = function(msg, src, line, col){
+                try{ parent.postMessage({__runner_error__: String(msg), src:src||'', line:line||0, col:col||0}, '*'); }catch(e){}
+              };
+            })();
+          </script>`;
+
+        if (hasHtml) {
+          if (hasHead) {
+            s = s.replace(/<\s*head(\s[^>]*)?>/i, (m) => {
+              let inject = '';
+              if (!hasCharset) inject += META_CHARSET;
+              if (!hasViewport) inject += META_VIEWPORT;
+              inject += errorHook;
+              return m + inject;
+            });
+            return s;
+          }
+          return s.replace(/<\s*html([^>]*)>/i,
+            (m, attrs) => `<html${attrs}><head>${META_CHARSET}${META_VIEWPORT}${errorHook}</head>`);
+        }
+        return `<!doctype html><html><head>${META_CHARSET}${META_VIEWPORT}${errorHook}</head><body>${s}</body></html>`;
+      }
+
+      // Execution
+      function resetIframe() {
+        const blank = document.createElement('iframe');
+        blank.id = 'view';
+        blank.setAttribute('sandbox', SANDBOX);
+        blank.srcdoc = '<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>';
+        desk.replaceChild(blank, iframe);
+        iframe = blank;
+      }
+      function executeCode(doc) {
+        markRunning();
+        const fresh = document.createElement('iframe');
+        fresh.id = 'view';
+        fresh.setAttribute('sandbox', SANDBOX);
+        fresh.srcdoc = doc;
+        desk.replaceChild(fresh, iframe);
+        iframe = fresh;
+
+        clearTimeout(timer);
+        timer = setTimeout(() => markError(), 6000);
+        iframe.addEventListener('load', () => { clearTimeout(timer); markLive(); showToast('Запущено'); }, { once:true });
+        iframe.addEventListener('error', () => { clearTimeout(timer); markError(); }, { once:true });
+      }
+
+      // Error channel from srcdoc
+      window.addEventListener('message', (ev) => {
+        const d = ev?.data;
+        if (d && d.__runner_error__) {
+          markError();
+          showToast('Ошибка в коде: ' + d.__runner_error__);
+        }
+      }, { signal });
+
+      // Actions
+      codeEl.addEventListener('input', updateRunState, { signal });
+      toggleEditorBtn.addEventListener('click', () => setEditorState(!isEditorVisible()), { signal });
+      toggleEditorIcon.addEventListener('click', () => setEditorState(!isEditorVisible()), { signal });
 
       pasteBtn.addEventListener('click', async () => {
         let inserted = null;
-        try {
-          if (navigator.clipboard?.readText) inserted = await navigator.clipboard.readText();
-        } catch {}
+        try { if (navigator.clipboard?.readText) inserted = await navigator.clipboard.readText(); } catch {}
         if (!inserted) inserted = prompt('Вставьте текст вручную:') || '';
-        const cleaned = sanitizeEl.checked ? extractHtml(inserted) : inserted;
-        codeEl.value = cleaned;
+        const raw = sanitizeEl.checked ? extractHtmlOrFragment(inserted) : stripControl(inserted).trim();
+        codeEl.value = raw;
         updateRunState();
         showToast('Вставлено');
         setEditorState(false);
-        executeCode(wrapDocument(cleaned));
-      });
+        executeCode(buildDocument(raw));
+      }, { signal });
 
       clearBtn.addEventListener('click', () => {
         codeEl.value = '';
@@ -201,81 +295,53 @@
         resetIframe();
         showToast('Очищено');
         setEditorState(true);
-      });
+      }, { signal });
 
       runBtn.addEventListener('click', () => {
         if (runBtn.disabled) return;
-        const raw = codeEl.value;
-        const cleaned = sanitizeEl.checked ? extractHtml(raw) : raw;
+        const src = sanitizeEl.checked ? extractHtmlOrFragment(codeEl.value) : stripControl(codeEl.value).trim();
         if (isEditorVisible()) setEditorState(false);
-        executeCode(wrapDocument(cleaned));
-      });
+        executeCode(buildDocument(src));
+      }, { signal });
 
-      function executeCode(doc) {
-        markRunning();
-        resetIframe();
-        const fresh = document.createElement('iframe');
-        fresh.id = 'view';
-        fresh.setAttribute('sandbox',
-          'allow-scripts allow-forms allow-modals allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-downloads allow-same-origin');
-        fresh.srcdoc = doc;
-        desk.replaceChild(fresh, iframe);
-        iframe = fresh;
+      exportBtn.addEventListener('click', () => {
+        const raw = codeEl.value;
+        if (!raw.trim()) { showToast('Нет данных для сохранения'); return; }
+        const cleaned = sanitizeEl.checked ? extractHtmlOrFragment(raw) : stripControl(raw).trim();
+        const doc = buildDocument(cleaned);
+        const blob = new Blob([doc], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = makeFileNameFromTitle(doc) || 'page.html';
+        document.body.appendChild(a);
+        a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 0);
+        showToast('HTML сохранён');
+      }, { signal });
 
-        clearTimeout(timer);
-        timer = setTimeout(() => markError(), 5000);
-        iframe.onload = () => { clearTimeout(timer); markLive(); showToast('Запущено'); };
-        iframe.onerror = () => { clearTimeout(timer); markError(); };
+      function makeFileNameFromTitle(doc) {
+        const m = /<title>([^<]{1,120})<\/title>/i.exec(doc);
+        if (!m) return '';
+        return m[1].trim()
+          .replace(/[\\\/:*?"<>|]+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .substring(0, 80) + '.html';
       }
 
-      function resetIframe() {
-        const blank = document.createElement('iframe');
-        blank.id = 'view';
-        blank.setAttribute('sandbox',
-          'allow-scripts allow-forms allow-modals allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-downloads allow-same-origin');
-        blank.srcdoc = '<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>';
-        desk.replaceChild(blank, iframe);
-        iframe = blank;
-      }
-
-      function extractHtml(text) {
-        let t = text || '';
-        const fence = /```(?:html|HTML|htm|HTM)?\s*([\s\S]*?)```/;
-        const mFence = t.match(fence);
-        if (mFence) t = mFence[1];
-        const low = t.toLowerCase();
-        const iDoctype = low.indexOf('<!doctype');
-        const iHtml = low.indexOf('<html');
-        let start = -1;
-        if (iDoctype >= 0 && iHtml >= 0) start = Math.min(iDoctype, iHtml);
-        else start = (iDoctype >= 0) ? iDoctype : iHtml;
-        if (start >= 0) {
-          t = t.slice(start);
-          const endTag = t.toLowerCase().lastIndexOf('</html>');
-          if (endTag >= 0) t = t.slice(0, endTag + 7);
-          return t.trim();
-        }
-        return t.trim();
-      }
-
-      function wrapDocument(src) {
-        const hasHtml = /<\s*html[\s>]/i.test(src);
-        const hasHead = /<\s*head[\s>]/i.test(src);
-        const viewport = `<meta name="viewport" content="width=device-width, initial-scale=1">`;
-        if (hasHtml) {
-          if (hasHead) {
-            if (!/name=["']viewport["']/i.test(src))
-              return src.replace(/<\s*head(\s[^>]*)?>/i, m => `${m}${viewport}`);
-            return src;
-          }
-          return src.replace(/<\s*html([^>]*)>/i, (m, attrs) => `<html${attrs}><head>${viewport}</head>`);
-        }
-        return `<!doctype html><html><head><meta charset="utf-8">${viewport}</head><body>${src}</body></html>`;
-      }
-
+      // Init
       updateRunState();
-      layout();
       setEditorState(true);
+      requestLayout();
+
+      // Cleanup
+      window.addEventListener('unload', () => {
+        try { ro.disconnect(); } catch {}
+        try { AC.abort(); } catch {}
+        cancelAnimationFrame(raf);
+        clearTimeout(timer);
+      }, { once:true });
     }
   })();
   </script>
