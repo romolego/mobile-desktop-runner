@@ -44,21 +44,6 @@
 
     .grow { width: 1px; margin-left: auto; }
 
-    .meter { min-width: 110px; font-size: 11px; line-height: 1.2; padding: 4px 6px; border: 1px solid #c9ced6; border-radius: 8px; background: #fff; display: grid; gap: 2px; }
-
-    .popover-wrap { position: relative; }
-    .popover { position: absolute; top: 36px; right: 0; width: min(420px, 90vw); max-height: 60vh; overflow: auto; background: #fff; border: 1px solid #c9ced6; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.14), 0 2px 6px rgba(0,0,0,.08); padding: 10px; z-index: 30; }
-    .popover-head { display: grid; grid-auto-flow: column; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 10px; font-size: 13px; }
-    .log-list { display: grid; gap: 8px; font-size: 12px; }
-    .log-item { border: 1px solid #d6d9de; border-radius: 8px; padding: 8px; background: #f9fafb; display: grid; grid-template-columns: auto 1fr auto; gap: 6px; align-items: center; }
-    .log-meta { font-weight: 600; color: #334155; }
-    .log-preview { color: #475569; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .log-actions { display: grid; justify-content: end; margin-top: 8px; }
-    .log-empty { color: #94a3b8; font-style: italic; padding: 4px; }
-    .btn-secondary { background: #fff; border: 1px solid #c9ced6; color: #111; }
-    .log-btns { display: grid; grid-auto-flow: column; gap: 6px; }
-    .log-btns button { width: 28px; height: 28px; padding: 0; font-size: 14px; }
-
     .wrap { height: calc(100% - var(--topbar-h)); display: grid; grid-template-rows: auto 1fr; }
     .editor-wrap { padding: var(--pad); }
     .editor-wrap.collapsed { display: none; }
@@ -93,18 +78,13 @@
       .topbar { gap: 4px; }
       button { padding: 0 8px; }
       .chk { gap: 4px; }
-      .meter { min-width: 96px; padding: 3px 5px; }
     }
   </style>
 </head>
 <body>
   <div class="topbar" id="topbar">
-    <button id="paste">Вставить</button>
-    <div class="meter" id="meter">
-      <div id="charCount">Символов: 0</div>
-      <div id="lineCount">Строк: 0</div>
-    </div>
     <button id="toggleEditorIcon" title="Скрыть редактор">🔽</button>
+    <button id="paste">Вставить</button>
     <button id="run" disabled>Запустить</button>
     <button id="clear">Очистить</button>
     <label class="chk" title="Убрать ненужный текст до и после содержимого HTML-страницы">
@@ -112,22 +92,6 @@
     </label>
     <button id="toggleEditor" class="btn-primary">Скрыть редактор</button>
     <div class="grow"></div>
-    <div class="popover-wrap" id="logWrap">
-      <button id="logBtn">Лог</button>
-      <div class="popover" id="logPopover" hidden>
-        <div class="popover-head">
-          <span>Вести лог</span>
-          <label class="chk">
-            <input type="checkbox" id="logToggle">
-            <span>вкл</span>
-          </label>
-        </div>
-        <div class="log-list" id="logList"></div>
-        <div class="log-actions">
-          <button id="clearLog" class="btn-secondary">Очистить лог</button>
-        </div>
-      </div>
-    </div>
     <button id="export">Сохранить HTML</button>
   </div>
   <div class="spacer"></div>
@@ -165,21 +129,9 @@
       const editorWrap = document.getElementById('editorWrap');
       const desk = document.getElementById('desk');
       const toast = document.getElementById('toast');
-      const charCountEl = document.getElementById('charCount');
-      const lineCountEl = document.getElementById('lineCount');
-      const logBtn = document.getElementById('logBtn');
-      const logPopover = document.getElementById('logPopover');
-      const logToggle = document.getElementById('logToggle');
-      const logList = document.getElementById('logList');
-      const clearLogBtn = document.getElementById('clearLog');
-      const logWrap = document.getElementById('logWrap');
       let iframe = document.getElementById('view');
 
       let timer;
-      let lastRunSource = '';
-      const LOG_ENABLED_KEY = 'mdr.log.enabled';
-      const LOG_STORE_KEY = 'mdr.log.entries';
-      const LOG_LIMIT = 30;
 
       function showToast(text) {
         toast.textContent = text;
@@ -198,14 +150,6 @@
 
       function updateRunState() {
         runBtn.disabled = !codeEl.value.trim();
-        updateCounters();
-      }
-
-      function updateCounters() {
-        const val = codeEl.value || '';
-        charCountEl.textContent = `Символов: ${val.length}`;
-        const lines = val ? val.split(/\r\n|\r|\n/).length : 0;
-        lineCountEl.textContent = `Строк: ${lines}`;
       }
 
       function markRunning() {
@@ -237,97 +181,6 @@
         layout();
       }
 
-      function loadLogEnabled() {
-        return localStorage.getItem(LOG_ENABLED_KEY) === '1';
-      }
-
-      function saveLogEnabled(on) {
-        localStorage.setItem(LOG_ENABLED_KEY, on ? '1' : '0');
-      }
-
-      function loadLogEntries() {
-        try {
-          const raw = localStorage.getItem(LOG_STORE_KEY);
-          if (!raw) return [];
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed)) return parsed;
-        } catch {}
-        return [];
-      }
-
-      function saveLogEntries(items) {
-        localStorage.setItem(LOG_STORE_KEY, JSON.stringify(items));
-      }
-
-      function addLogEntry(code) {
-        if (!logToggle.checked) return;
-        const items = loadLogEntries();
-        const ts = new Date();
-        items.unshift({ id: ts.getTime(), ts: ts.toISOString(), code });
-        if (items.length > LOG_LIMIT) items.length = LOG_LIMIT;
-        saveLogEntries(items);
-        renderLog();
-      }
-
-      function removeLogEntry(id) {
-        const filtered = loadLogEntries().filter((i) => i.id !== id);
-        saveLogEntries(filtered);
-        renderLog();
-      }
-
-      function clearLog() {
-        saveLogEntries([]);
-        renderLog();
-      }
-
-      function renderLog() {
-        const items = loadLogEntries();
-        logList.innerHTML = '';
-        if (!logToggle.checked) {
-          logList.innerHTML = '<div class="log-empty">Лог выключен</div>';
-          return;
-        }
-        if (!items.length) {
-          logList.innerHTML = '<div class="log-empty">Пока нет записей</div>';
-          return;
-        }
-        const frag = document.createDocumentFragment();
-        items.forEach((item) => {
-          const row = document.createElement('div');
-          row.className = 'log-item';
-          const meta = document.createElement('div');
-          meta.className = 'log-meta';
-          const date = new Date(item.ts);
-          meta.textContent = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
-          const preview = document.createElement('div');
-          preview.className = 'log-preview';
-          const clip = item.code.replace(/\s+/g, ' ').trim();
-          preview.textContent = clip.length > 180 ? clip.slice(0, 180) + '…' : clip || '—';
-          const btns = document.createElement('div');
-          btns.className = 'log-btns';
-
-          const restore = document.createElement('button');
-          restore.title = 'Восстановить код';
-          restore.textContent = '↩';
-          restore.addEventListener('click', () => {
-            codeEl.value = item.code;
-            updateRunState();
-            setEditorState(true);
-          });
-
-          const del = document.createElement('button');
-          del.title = 'Удалить запись';
-          del.textContent = '✖';
-          del.style.color = '#b91c1c';
-          del.addEventListener('click', () => removeLogEntry(item.id));
-
-          btns.append(restore, del);
-          row.append(meta, preview, btns);
-          frag.append(row);
-        });
-        logList.append(frag);
-      }
-
       codeEl.addEventListener('input', updateRunState);
       toggleEditorBtn.addEventListener('click', () => setEditorState(!isEditorVisible()));
       toggleEditorIcon.addEventListener('click', () => setEditorState(!isEditorVisible()));
@@ -344,7 +197,7 @@
         showToast('Вставлено');
         setEditorState(false);
         const doc = wrapDocument(cleaned);
-        executeCode(doc, cleaned);
+        executeCode(doc);
       });
 
       clearBtn.addEventListener('click', () => {
@@ -361,7 +214,7 @@
         const cleaned = sanitizeEl.checked ? extractHtml(raw) : stripBOM(raw).trim();
         if (isEditorVisible()) setEditorState(false);
         const doc = wrapDocument(cleaned);
-        executeCode(doc, cleaned);
+        executeCode(doc);
       });
 
       exportBtn.addEventListener('click', () => {
@@ -372,28 +225,7 @@
         downloadHtml(doc);
       });
 
-      logBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const isHidden = logPopover.hasAttribute('hidden');
-        logPopover.toggleAttribute('hidden', !isHidden);
-        if (isHidden) renderLog();
-      });
-
-      document.addEventListener('click', (e) => {
-        if (!logPopover.hasAttribute('hidden') && !logWrap.contains(e.target)) {
-          logPopover.setAttribute('hidden', '');
-        }
-      });
-
-      logToggle.addEventListener('change', () => {
-        saveLogEnabled(logToggle.checked);
-        renderLog();
-      });
-
-      clearLogBtn.addEventListener('click', () => clearLog());
-
-      function executeCode(doc, sourceForLog = '') {
-        lastRunSource = sourceForLog;
+      function executeCode(doc) {
         markRunning();
         resetIframe();
         const fresh = document.createElement('iframe');
@@ -406,7 +238,7 @@
 
         clearTimeout(timer);
         timer = setTimeout(() => markError(), 5000);
-        iframe.onload = () => { clearTimeout(timer); markLive(); showToast('Запущено'); addLogEntry(lastRunSource); };
+        iframe.onload = () => { clearTimeout(timer); markLive(); showToast('Запущено'); };
         iframe.onerror = () => { clearTimeout(timer); markError(); };
       }
 
@@ -489,9 +321,6 @@
         setTimeout(() => URL.revokeObjectURL(url), 0);
         showToast('HTML сохранён');
       }
-
-      logToggle.checked = loadLogEnabled();
-      renderLog();
 
       updateRunState();
       layout();
