@@ -70,7 +70,7 @@
       tab-size: 2; white-space: pre; overscroll-behavior: contain;
     }
 
-    .stage { padding: 0 var(--pad) var(--pad); width: 100%; height: 100%; overflow: auto; display: grid; }
+    .stage { padding: var(--pad); width: 100%; height: 100%; overflow: auto; display: grid; }
     .desk {
       width: 100%; max-width: var(--max-w); margin: 0 auto;
       background: #fff; border: 1px solid #ccd2da; border-radius: 8px; overflow: hidden;
@@ -181,6 +181,7 @@
       const LOG_ENABLED_KEY = 'mdr.log.enabled';
       const LOG_STORE_KEY = 'mdr.log.entries';
       const LOG_LIMIT = 30;
+      const LOG_PREVIEW_LIMIT = 180;
 
       function showToast(text) {
         toast.textContent = text;
@@ -325,8 +326,7 @@
           meta.textContent = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
           const preview = document.createElement('div');
           preview.className = 'log-preview';
-          const clip = item.code.replace(/\s+/g, ' ').trim();
-          preview.textContent = clip.length > 180 ? clip.slice(0, 180) + '…' : clip || '—';
+          preview.textContent = buildLogPreview(item.code);
           const btns = document.createElement('div');
           btns.className = 'log-btns';
 
@@ -350,6 +350,23 @@
           frag.append(row);
         });
         logList.append(frag);
+      }
+
+      function buildLogPreview(code) {
+        const source = typeof code === 'string' ? code : '';
+        const isHtml = /<\s*html|<!doctype/i.test(source);
+        if (isHtml) {
+          const mTitle = source.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+          const title = mTitle ? mTitle[1].replace(/<[^>]*>/g, '').trim() : '';
+          if (title) return truncatePreview(title);
+        }
+        return truncatePreview(source);
+      }
+
+      function truncatePreview(text) {
+        const normalized = (text || '').replace(/\s+/g, ' ').trim();
+        if (!normalized) return '—';
+        return normalized.length > LOG_PREVIEW_LIMIT ? normalized.slice(0, LOG_PREVIEW_LIMIT) + '…' : normalized;
       }
 
       codeEl.addEventListener('input', updateRunState);
